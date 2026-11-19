@@ -1,0 +1,10 @@
+{
+  "tenant_id": 1,
+  "company_id": 42,
+  "company_name": "Coffee Demo",
+  "locations": [
+    {"location_id": 101, "name": "Coffee Demo", "latitude": 55.7558, "longitude": 37.6176, "external_place_id": "fake_place_101"},
+    {"location_id": 102, "name": "Coffee Demo", "latitude": 55.7645, "longitude": 37.6056, "external_place_id": "fake_place_102"},
+    {"location_id": 103, "name": "Coffee Demo", "latitude": 55.7317, "longitude": 37.6055, "external_place_id": "fake_place_103"}
+  ]
+}

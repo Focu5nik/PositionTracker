@@ -1,0 +1,141 @@
+{
+  "project": {
+    "company_id": 42,
+    "location_ids": [101, 102, 103],
+    "keywords": ["кофейня рядом", "кофе с собой"],
+    "platforms": ["fake_maps"],
+    "grid": {"size": 5, "radius_m": 2000},
+    "schedule": {"mode": "manual"}
+  },
+  "top_n": 12,
+  "cases": [
+    {
+      "id": "found_rank_2",
+      "location_id": 101,
+      "keyword": "кофейня рядом",
+      "row": 2,
+      "col": 2,
+      "complete_to_rank": 12,
+      "ordered_place_ids": ["c01", "fake_place_101", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10", "c11"],
+      "expected": {"outcome": "FOUND", "rank": 2}
+    },
+    {
+      "id": "found_top3_boundary",
+      "location_id": 102,
+      "keyword": "кофейня рядом",
+      "row": 2,
+      "col": 2,
+      "complete_to_rank": 12,
+      "ordered_place_ids": ["c01", "c02", "fake_place_102", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10", "c11"],
+      "expected": {"outcome": "FOUND", "rank": 3}
+    },
+    {
+      "id": "found_top10_boundary",
+      "location_id": 103,
+      "keyword": "кофейня рядом",
+      "row": 2,
+      "col": 2,
+      "complete_to_rank": 12,
+      "ordered_place_ids": ["c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "fake_place_103", "c10", "c11"],
+      "expected": {"outcome": "FOUND", "rank": 10}
+    },
+    {
+      "id": "found_outside_top10",
+      "location_id": 101,
+      "keyword": "кофе с собой",
+      "row": 2,
+      "col": 2,
+      "complete_to_rank": 12,
+      "ordered_place_ids": ["c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10", "fake_place_101", "c11"],
+      "expected": {"outcome": "FOUND", "rank": 11}
+    },
+    {
+      "id": "found_in_partial_window",
+      "location_id": 102,
+      "keyword": "кофе с собой",
+      "row": 2,
+      "col": 2,
+      "complete_to_rank": 1,
+      "ordered_place_ids": ["fake_place_102"],
+      "expected": {"outcome": "FOUND", "rank": 1}
+    },
+    {
+      "id": "same_name_different_branch",
+      "location_id": 103,
+      "keyword": "кофе с собой",
+      "row": 2,
+      "col": 2,
+      "complete_to_rank": 12,
+      "ordered_place_ids": ["fake_place_101", "c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10", "c11"],
+      "expected": {"outcome": "NOT_FOUND", "rank": null}
+    },
+    {
+      "id": "absent_in_complete_window",
+      "location_id": 101,
+      "keyword": "кофейня рядом",
+      "row": 0,
+      "col": 0,
+      "complete_to_rank": 12,
+      "ordered_place_ids": ["c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10", "c11", "c12"],
+      "expected": {"outcome": "NOT_FOUND", "rank": null}
+    },
+    {
+      "id": "absent_one_position_missing",
+      "location_id": 102,
+      "keyword": "кофейня рядом",
+      "row": 0,
+      "col": 4,
+      "complete_to_rank": 11,
+      "ordered_place_ids": ["c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10", "c11"],
+      "expected": {"outcome": "NO_DATA", "rank": null}
+    },
+    {
+      "id": "empty_window",
+      "location_id": 103,
+      "keyword": "кофе с собой",
+      "row": 4,
+      "col": 0,
+      "complete_to_rank": 0,
+      "ordered_place_ids": [],
+      "expected": {"outcome": "NO_DATA", "rank": null}
+    },
+    {
+      "id": "duplicate_target_in_partial_window",
+      "location_id": 101,
+      "keyword": "кофе с собой",
+      "row": 4,
+      "col": 4,
+      "complete_to_rank": 4,
+      "ordered_place_ids": ["c01", "fake_place_101", "c02", "fake_place_101"],
+      "expected": {"outcome": "AMBIGUOUS", "rank": null}
+    }
+  ],
+  "default_provider_result": {
+    "complete_to_rank": 12,
+    "ordered_place_ids": ["c01", "c02", "c03", "c04", "$target", "c05", "c06", "c07", "c08", "c09", "c10", "c11"]
+  },
+  "expected_summary": {
+    "explicit_cases": {
+      "total_checks": 10,
+      "succeeded_checks": 10,
+      "failed_checks": 0,
+      "valid_checks": 7,
+      "data_quality_excluded": 3,
+      "coverage_pct": 70,
+      "avg_found_rank": 5.4,
+      "top3_pct": 42.86,
+      "top10_pct": 57.14
+    },
+    "demo_run": {
+      "total_checks": 150,
+      "succeeded_checks": 150,
+      "failed_checks": 0,
+      "valid_checks": 147,
+      "data_quality_excluded": 3,
+      "coverage_pct": 98,
+      "avg_found_rank": 5.0138,
+      "top3_pct": 2.04,
+      "top10_pct": 97.96
+    }
+  }
+}

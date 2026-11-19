@@ -1,0 +1,82 @@
+x-app: &app
+  image: ${COMPOSE_PROJECT_NAME:-positiontracker}-app:v0.1
+  build: .
+  depends_on:
+    postgres:
+      condition: service_healthy
+  healthcheck:
+    test:
+      - CMD
+      - python
+      - -c
+      - "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready', timeout=5).close()"
+    interval: 5s
+    timeout: 6s
+    retries: 10
+
+services:
+  postgres:
+    image: postgres:17.12-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env}
+      MONOLITH_DB_NAME: ${MONOLITH_DB_NAME:?Set MONOLITH_DB_NAME}
+      MONOLITH_DB_USER: ${MONOLITH_DB_USER:?Set MONOLITH_DB_USER}
+      MONOLITH_DB_PASSWORD: ${MONOLITH_DB_PASSWORD:?Set MONOLITH_DB_PASSWORD}
+      TRACKER_DB_NAME: ${TRACKER_DB_NAME:?Set TRACKER_DB_NAME}
+      TRACKER_DB_USER: ${TRACKER_DB_USER:?Set TRACKER_DB_USER}
+      TRACKER_DB_PASSWORD: ${TRACKER_DB_PASSWORD:?Set TRACKER_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/10-databases.sql:ro
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, postgres, -d, postgres]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.4.1-management@sha256:61f90c401a5b5ed2486771973ea92ad66046471eacab9c9149f1a6e091c91677
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - test -s /var/lib/rabbitmq/.erlang.cookie && gosu rabbitmq rabbitmq-diagnostics -q check_port_connectivity
+      interval: 5s
+      timeout: 10s
+      retries: 15
+
+  monolith:
+    <<: *app
+    command: [python, -m, apps.monolith.manage, runserver, "0.0.0.0:8000", --noreload]
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${MONOLITH_DB_NAME:?Set MONOLITH_DB_NAME}
+      DB_USER: ${MONOLITH_DB_USER:?Set MONOLITH_DB_USER}
+      TEST_OTHER_DB_NAME: ${TRACKER_DB_NAME:?Set TRACKER_DB_NAME}
+      DB_PASSWORD: ${MONOLITH_DB_PASSWORD:?Set MONOLITH_DB_PASSWORD}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY}
+    ports:
+      - "127.0.0.1:${MONOLITH_PORT:-8000}:8000"
+
+  tracker:
+    <<: *app
+    command: [python, -m, uvicorn, apps.tracker.src.tracker.main:app, --host, 0.0.0.0, --port, "8000"]
+    environment:
+      DB_HOST: postgres
+      DB_NAME: ${TRACKER_DB_NAME:?Set TRACKER_DB_NAME}
+      DB_USER: ${TRACKER_DB_USER:?Set TRACKER_DB_USER}
+      TEST_OTHER_DB_NAME: ${MONOLITH_DB_NAME:?Set MONOLITH_DB_NAME}
+      DB_PASSWORD: ${TRACKER_DB_PASSWORD:?Set TRACKER_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:${TRACKER_PORT:-8001}:8000"
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
