@@ -1,7 +1,5 @@
-import os
 from unittest.mock import AsyncMock, Mock
 
-import django
 import pytest
 from django.db import OperationalError as DjangoOperationalError
 from django.test import Client
@@ -15,10 +13,6 @@ from apps.tracker.src.tracker import main
 @pytest.fixture(params=["monolith", "tracker"])
 def health_client(request, monkeypatch):
     if request.param == "monolith":
-        monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "apps.monolith.config.settings")
-        for key in ("DJANGO_SECRET_KEY", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"):
-            monkeypatch.setenv(key, os.environ.get(key, "test-only"))
-        django.setup()
         probe = Mock()
         monkeypatch.setattr(health, "check_database", probe)
         yield Client(headers={"Host": "localhost"}), probe, DjangoOperationalError

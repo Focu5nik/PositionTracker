@@ -54,7 +54,7 @@ services:
 
   monolith:
     <<: *app
-    command: [python, -m, apps.monolith.manage, runserver, "0.0.0.0:8000", --noreload]
+    command: [python, -m, apps.monolith.manage, runserver, "0.0.0.0:8000", --noreload, --insecure]
     environment:
       DB_HOST: postgres
       DB_NAME: ${MONOLITH_DB_NAME:?Set MONOLITH_DB_NAME}
