@@ -3,5 +3,6 @@
 !uv.lock
 !apps/
 !apps/**/*.py
+!apps/tracker/migrations/script.py.mako
 !tests/
 !tests/**/*.py

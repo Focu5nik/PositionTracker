@@ -4,7 +4,7 @@ import pytest
 from django.db import OperationalError as DjangoOperationalError
 from django.test import Client
 from fastapi.testclient import TestClient
-from psycopg import OperationalError
+from sqlalchemy.exc import TimeoutError
 
 from apps.monolith.config import health
 from apps.tracker.src.tracker import main
@@ -17,10 +17,11 @@ def health_client(request, monkeypatch):
         monkeypatch.setattr(health, "check_database", probe)
         yield Client(headers={"Host": "localhost"}), probe, DjangoOperationalError
     else:
+        request.getfixturevalue("tracker_db_env")
         probe = AsyncMock()
         monkeypatch.setattr(main, "check_database", probe)
         with TestClient(main.app) as client:
-            yield client, probe, OperationalError
+            yield client, probe, TimeoutError
 
 
 def test_live_does_not_need_database(health_client):
@@ -41,7 +42,7 @@ def test_ready_when_database_responds(health_client):
 
     assert response.status_code == 200
     assert response.json() == {"status": "ready"}
-    probe.assert_called_once_with()
+    probe.assert_called_once()
 
 
 def test_ready_recovers_after_database_failure(health_client):

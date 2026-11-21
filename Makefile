@@ -20,7 +20,8 @@ test:
 
 migrate:
 	$(DOCKER) compose exec -T monolith python -m apps.monolith.manage migrate
+	$(DOCKER) compose exec -T tracker python -m alembic upgrade head
 
 smoke:
-	$(DOCKER) compose exec -T -e RUN_COMPOSE_TESTS=1 monolith python -m pytest tests/test_compose.py
+	$(DOCKER) compose exec -T -e RUN_COMPOSE_TESTS=1 -e DJANGO_SETTINGS_MODULE=apps.monolith.config.settings monolith python -m pytest tests/test_compose.py
 	$(DOCKER) compose exec -T -e RUN_COMPOSE_TESTS=1 tracker python -m pytest tests/test_compose.py

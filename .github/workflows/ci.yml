@@ -23,6 +23,8 @@ jobs:
         run: |
           make up
           make migrate
+          docker compose exec -T tracker python -m alembic downgrade base
+          docker compose exec -T tracker python -m alembic upgrade head
           make smoke
       - name: Stop Compose
         if: always()

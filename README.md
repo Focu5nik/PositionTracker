@@ -2,7 +2,7 @@
 
 Трекер позиций филиалов в локальной поисковой выдаче. Демо Coffee Demo охватывает три филиала, два поисковых запроса и сетку 5×5 на филиал. Один запуск даёт 150 проверок на синтетической платформе `fake_maps`.
 
-Версия **v0.2** добавляет в Django каталог филиалов с доступом по членству в tenant.
+В **v0.3** Tracker получает собственные миграции Alembic, асинхронный доступ к PostgreSQL и локальный маршрут для проверки service token.
 
 ## Локальный запуск
 
@@ -12,6 +12,7 @@
 Copy-Item .env.example .env
 docker compose up --build --wait
 docker compose exec -T monolith python -m apps.monolith.manage migrate
+docker compose exec -T tracker python -m alembic upgrade head
 ```
 
 Копируй `.env.example` только при первом запуске. Значения в нём предназначены для локальной разработки. Базы и учётные данные RabbitMQ инициализируются при первом запуске с пустыми томами. Имеющиеся данные сохраняются при `docker compose down`.
@@ -35,6 +36,49 @@ curl.exe --fail --silent --show-error http://localhost:8000/health/ready
 curl.exe --fail --silent --show-error http://localhost:8001/health/live
 curl.exe --fail --silent --show-error http://localhost:8001/health/ready
 ```
+
+## Внутренний маршрут Tracker
+
+`GET /internal/v1/whoami` регистрируется при `TRACKER_ENABLE_DEV_WHOAMI=1`. Для локального демо перенеси две настройки `TRACKER_ENABLE_DEV_WHOAMI` и `TRACKER_DEV_SIGNING_KEY` из `.env.example` в существующий `.env` и выполни `docker compose up --build --wait`. Для релиза оставь флаг выключенным. Tracker принимает Bearer JWT с алгоритмом HS256, `iss=positiontracker-dev`, `aud=positiontracker-tracker`, `exp`, `sub`, положительным целым `tenant_id` и списком `scopes`, содержащим `tracker:whoami`. Неавторизованный запрос получает `401`, валидный токен без нужного scope получает `403`.
+
+### Вызов из Django
+
+После [создания демо-данных](#демо-данные-и-админка) узнай ID tenant пользователя `demo-viewer`.
+
+```powershell
+docker compose exec -T monolith python -m apps.monolith.manage shell -c "from apps.monolith.catalog.models import Membership; print(Membership.objects.get(user__username='demo-viewer', tenant__name='Coffee Demo').tenant_id)"
+```
+
+Войди как `demo-viewer` по инструкции для [браузера](#чтение-филиалов-в-браузере) и открой `http://localhost:8000/api/v1/tenants/<tenant_id>/tracker/whoami`. Django проверит членство в tenant, подпишет минутный JWT и вызовет Tracker. Ответ содержит `service`, `tenant_id`, `scopes` и `database`. Без сессии Django вернёт `403`. Для чужого или отсутствующего tenant и при выключенном флаге вернёт `404`.
+
+### Прямой вызов Tracker
+
+Этот пример для PowerShell создаёт минутный токен внутри контейнера и выводит JSON-ответ.
+
+```powershell
+@'
+import os
+import time
+from urllib.request import Request, urlopen
+
+import jwt
+
+claims = {
+    "iss": "positiontracker-dev",
+    "aud": "positiontracker-tracker",
+    "sub": "local-demo",
+    "exp": int(time.time()) + 60,
+    "tenant_id": 7,
+    "scopes": ["tracker:whoami"],
+}
+token = jwt.encode(claims, os.environ["TRACKER_DEV_SIGNING_KEY"], algorithm="HS256")
+request = Request("http://localhost:8000/internal/v1/whoami", headers={"Authorization": f"Bearer {token}"})
+with urlopen(request, timeout=5) as response:
+    print(response.read().decode())
+'@ | docker compose exec -T tracker python -
+```
+
+Ответ содержит `service`, `tenant_id`, `scopes` и имя подключённой базы `database`. Baseline Alembic можно применить на существующем томе. Она создаёт историю в `alembic_version` в Tracker. Для проверки отката на отдельной тестовой базе выполни `docker compose exec -T tracker python -m alembic downgrade base`, затем `docker compose exec -T tracker python -m alembic upgrade head`.
 
 ## Демо-данные и админка
 
@@ -83,12 +127,12 @@ Invoke-RestMethod "$base/api/v1/auth/logout" -Method Post -WebSession $positionS
 | `make up` | `docker compose up --build --wait` |
 | `make down` | `docker compose down` |
 | `make logs` | `docker compose logs --tail=100` |
-| `make migrate` | `docker compose exec -T monolith python -m apps.monolith.manage migrate` |
+| `make migrate` | `docker compose exec -T monolith python -m apps.monolith.manage migrate` и `docker compose exec -T tracker python -m alembic upgrade head` |
 | `make test` | `docker compose run --build --rm -T --no-deps monolith python -m pytest` |
 | `make lint` | `docker compose run --build --rm -T --no-deps monolith ruff check apps tests` и `docker compose run --rm -T --no-deps monolith mypy` |
-| `make smoke` | `docker compose exec -T -e RUN_COMPOSE_TESTS=1 monolith python -m pytest tests/test_compose.py` и `docker compose exec -T -e RUN_COMPOSE_TESTS=1 tracker python -m pytest tests/test_compose.py` |
+| `make smoke` | `docker compose exec -T -e RUN_COMPOSE_TESTS=1 -e DJANGO_SETTINGS_MODULE=apps.monolith.config.settings monolith python -m pytest tests/test_compose.py` и `docker compose exec -T -e RUN_COMPOSE_TESTS=1 tracker python -m pytest tests/test_compose.py` |
 
-`make test` проверяет HTTP-контракты и изоляцию каталога на SQLite в памяти. `make smoke` требует запущенные сервисы и проверяет сетевые имена, доступ к своей БД и запрет подключения к чужой, а также интерфейс RabbitMQ.
+`make test` проверяет HTTP-контракты, изоляцию каталога на SQLite в памяти, токены Tracker и границы транзакции. После `make up` и `make migrate` команда `make smoke` проверяет изоляцию баз, ревизию Alembic, HTTP-ответ Tracker и интерфейс RabbitMQ. При включённом dev-флаге добавляется сквозная проверка от входа в Django до ответа Tracker.
 
 В WSL с Windows Docker CLI можно передать `DOCKER=docker.exe`, например `make DOCKER=docker.exe up`.
 

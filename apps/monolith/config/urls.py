@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from apps.monolith.catalog.tracker_views import get_tracker_identity
 from apps.monolith.catalog.views import CompanyLocationList, LocationDetail
 
 from . import health, session_views
@@ -19,4 +20,9 @@ urlpatterns = [
         name="company-locations",
     ),
     path("api/v1/locations/<int:pk>", LocationDetail.as_view(), name="location-detail"),
+    path(
+        "api/v1/tenants/<int:tenant_id>/tracker/whoami",
+        get_tracker_identity,
+        name="tracker-whoami",
+    ),
 ]

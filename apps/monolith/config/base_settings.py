@@ -1,3 +1,5 @@
+import os
+
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "monolith"]
 ROOT_URLCONF = "apps.monolith.config.urls"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -43,3 +45,7 @@ TEMPLATES = [
 ]
 
 STATIC_URL = "/static/"
+
+TRACKER_ENABLE_DEV_WHOAMI = os.getenv("TRACKER_ENABLE_DEV_WHOAMI") == "1"
+TRACKER_DEV_SIGNING_KEY = os.getenv("TRACKER_DEV_SIGNING_KEY", "")
+TRACKER_BASE_URL = os.getenv("TRACKER_BASE_URL", "http://tracker:8000")
