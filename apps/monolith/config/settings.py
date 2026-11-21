@@ -1,15 +1,8 @@
 import os
 
+from .base_settings import *  # noqa: F403
+
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "monolith"]
-ROOT_URLCONF = "apps.monolith.config.urls"
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-INSTALLED_APPS = [
-    "django.contrib.contenttypes",
-    "django.contrib.auth",
-]
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
